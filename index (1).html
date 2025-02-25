@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Route Checker</title>
+    <style>
+        /* Body styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f8f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            height: 100vh;
+            overflow: auto;
+        }
+
+        /* Container styling */
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0px 4px 30px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Title */
+        h2 {
+            font-size: 24px;
+            color: #4b9b6f;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        /* Input box styling */
+        input[type="text"] {
+            padding: 10px;
+            width: 60%;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: #4b9b6f;
+        }
+
+        /* Buttons styling */
+        button {
+            padding: 12px 25px;
+            border-radius: 25px;
+            background-color: #4b9b6f;
+            color: white;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #3c7c5d;
+        }
+
+        /* Suggestions box styling */
+        #suggestions {
+            max-height: 120px;
+            overflow-y: auto;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            padding: 5px 0;
+            margin-top: 10px;
+            width: 60%; /* Same width as the search box */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .suggestion-item {
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Results container (scrollable) */
+        #output {
+            margin-top: 20px;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Arrival city styling */
+        .arrival-city {
+            padding: 6px 12px;
+            background-color: #eef2f3;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 12px; /* Smaller font size */
+            max-width: 150px;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .arrival-city:hover {
+            background-color: #c0e1d5;
+        }
+
+        /* Clear Button */
+        #clearButton {
+            margin-top: 10px;
+            padding: 8px 15px;
+            background-color: #e9e9e9;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+
+        #clearButton:hover {
+            background-color: #d8d8d8;
+        }
+
+        /* Available results (green background) */
+        .available {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        /* Unavailable results (red background) */
+        .unavailable {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 16px;
+            width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Enter City of Departure</h2>
+        <input type="text" id="departureCity" placeholder="Enter Departure City" oninput="showSuggestions()" onkeydown="checkEnterKey(event)" />
+        <button onclick="checkRoutes()">Search</button>
+        <button id="clearButton" onclick="clearSearch()">Clear</button>
+        <div id="suggestions"></div>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let routes = [];
+        let cities = [];
+
+        // Load JSON data
+        fetch('routes.json')
+            .then(response => response.json())
+            .then(data => {
+                routes = data;
+                // Create a list of cities for the suggestion feature
+                cities = [...new Set(routes.map(route => route["Departure City"].trim()))];
+            })
+            .catch(error => console.error('Error loading JSON:', error));
+
+        // Show suggestions based on user input
+        function showSuggestions() {
+            const cityInput = document.getElementById('departureCity').value.trim().toLowerCase();
+            const suggestionsDiv = document.getElementById('suggestions');
+            suggestionsDiv.innerHTML = '';
+
+            if (cityInput.length > 0) {
+                const filteredCities = cities.filter(city => city.toLowerCase().includes(cityInput));
+                filteredCities.forEach(city => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.classList.add('suggestion-item');
+                    suggestionItem.innerText = city;
+                    suggestionItem.onclick = () => {
+                        document.getElementById('departureCity').value = city;  // Set input value to the clicked suggestion
+                        checkRoutes();  // Automatically search when clicked
+                    };
+                    suggestionsDiv.appendChild(suggestionItem);
+                });
+            }
+        }
+
+        // Enter key functionality to trigger search
+        function checkEnterKey(event) {
+            if (event.key === "Enter") {
+                checkRoutes();
+            }
+        }
+
+        // Search for available routes
+        function checkRoutes() {
+            const city = document.getElementById('departureCity').value.trim();
+            const capitalizedCity = city.charAt(0).toUpperCase() + city.slice(1).toLowerCase(); // Capitalize the first letter
+            const results = routes.filter(route => route["Departure City"].trim().toLowerCase().includes(city.toLowerCase()));
+
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = ""; // Clear previous results
+
+            if (results.length === 0) {
+                outputDiv.classList.add('unavailable');
+                outputDiv.innerHTML = `<p>There are no destinations flying from ${capitalizedCity} available for audits.</p>`;
+            } else {
+                outputDiv.classList.add('available');
+                outputDiv.innerHTML = `<h3>You can travel to the below cities from ${capitalizedCity} - Apply now by clicking on the destination of your choice!</h3>`;
+
+                // Create a horizontal layout for arrival cities
+                const arrivalCities = results.map(r => r["Arrival City"].trim());
+                arrivalCities.forEach(city => {
+                    const arrivalCityDiv = document.createElement('div');
+                    arrivalCityDiv.classList.add('arrival-city');
+                    arrivalCityDiv.innerText = city;
+                    arrivalCityDiv.onclick = () => {
+                        window.location.href = "https://forms.office.com/r/MPbZUvsVrN"; // Redirect to application form
+                    };
+                    outputDiv.appendChild(arrivalCityDiv);
+                });
+            }
+        }
+
+        // Clear the search input and results
+        function clearSearch() {
+            document.getElementById('departureCity').value = '';
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('suggestions').innerHTML = '';
+        }
+    </script>
+
+</body>
+</html>
